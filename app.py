@@ -4,30 +4,30 @@ from flask import Flask, render_template, session
 from flask_session import Session
 import requests
 from logic.divisionalLogic import (
-    get_absolute_degree, get_d1_chart, get_d3_chart, 
+    get_absolute_degree, get_d1_chart,
     get_d6_chart, get_d9_chart, get_d30_chart, get_d60_chart
 )
+
+
+from logic.divisionalLogic import get_d3_chart_from_d1
 
 app = Flask(__name__)
 app.secret_key = 'astrosecret'
 app.config['SESSION_TYPE'] = 'filesystem'
 Session(app)
 
-# Define a safe zodiac list for lookup
 ZODIAC_SIGNS = [
     "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
     "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
 ]
 
 def zodiac_index(zodiac_name):
-    """Safe index fetch with fallback."""
     try:
         return ZODIAC_SIGNS.index(zodiac_name)
     except ValueError:
         raise Exception(f"Invalid zodiac sign: {zodiac_name}")
 
 def prepare_planets_raw(planets_data):
-    """Convert planets from structured API data into absolute degrees."""
     result = {}
     for planet, val in planets_data.items():
         sign_index = zodiac_index(val['zodiac'])
@@ -48,21 +48,19 @@ def show_charts():
     except Exception as e:
         return f"⚠️ Error fetching API data: {e}"
 
-    # Process Ascendant
     asc_data = data.get('ascendant', {})
     asc_sign_index = zodiac_index(asc_data.get('zodiac', ''))
     asc_deg = get_absolute_degree(asc_sign_index, asc_data.get('degree', 0))
 
-    # Process Planets
     planets_raw = prepare_planets_raw(data.get('planets', {}))
 
-    # Store in session (if needed later)
+    # ✅✅✅ STORE D1 FOR REUSE
     session['asc_deg'] = asc_deg
     session['planets_raw'] = planets_raw
 
-    # Get all charts
     d1 = get_d1_chart(planets_raw, asc_deg)
-    d3 = get_d3_chart(planets_raw, asc_deg)
+    # ✅✅✅ USE CUSTOM D3 LOGIC IMPORTED FROM dashaLogic.py
+    d3 = get_d3_chart_from_d1(planets_raw, asc_deg)
     d6 = get_d6_chart(planets_raw, asc_deg)
     d9 = get_d9_chart(planets_raw, asc_deg)
     d30 = get_d30_chart(planets_raw, asc_deg)

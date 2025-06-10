@@ -74,99 +74,54 @@ def generic_chart(planets_raw, asc_deg, transform_fn):
     asc_sign_index = int(asc_deg // 30)
     return rotate_chart(chart, asc_sign_index)
 
-# def get_d3_chart(planets_raw, asc_deg):
-#     def transform(abs_deg):
-#         sign, deg = get_sign_and_degree(abs_deg)
-#         drekkana = int(deg // 10)
-#         return (sign if drekkana == 0 else (sign + 5 if drekkana == 1 else (sign + 9))) % 12 + 1
-#     return generic_chart(planets_raw, asc_deg, transform)
 
 
+def get_d3_chart_from_d1(d1_planets_raw, d1_asc_deg):
+    ZODIAC_SIGNS = [
+        "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+        "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
+    ]
 
+    def get_sign_and_degree(abs_deg):
+        sign = int(abs_deg // 30)
+        degree_in_sign = abs_deg % 30
+        return sign, degree_in_sign
 
-
-# def get_d3_chart(planets_raw, asc_deg):
-#     def transform(abs_deg):
-#         sign, deg = get_sign_and_degree(abs_deg)  # sign = 0 for Aries, ..., 11 for Pisces
-#         drekkana = int(deg // 10)
-
-#         if drekkana == 0:
-#             new_sign = sign
-#         elif drekkana == 1:
-#             new_sign = (sign + 5) % 12
-#         else:  # drekkana == 2
-#             new_sign = (sign + 9) % 12
-
-#         return new_sign + 1  # +1 to make it 1-based (1 = Aries, ..., 12 = Pisces)
-
-#     return generic_chart(planets_raw, asc_deg, transform)
-
-
-
-# def get_d3_chart(planets_raw, asc_deg):
-#     def transform(abs_deg):
-#         sign, deg = get_sign_and_degree(abs_deg)
-#         drekkana = int(deg // 10)
-
-#         if drekkana == 0:
-#             new_sign = sign
-#         elif drekkana == 1:
-#             new_sign = (sign + 5) % 12
-#         else:  # drekkana == 2
-#             new_sign = (sign + 9) % 12
-
-#         return new_sign
-
-#     chart = {}
-#     for planet, abs_deg in planets_raw.items():
-#         chart[planet] = transform(abs_deg)
-
-#     asc_sign_index = transform(asc_deg)  # rotated ascendant's sign index
-#     asc_house = 1  # always placed in 1st house
-
-#     rotated = {i: {'planets': [], 'zodiac': ''} for i in range(1, 13)}
-#     for body, sign_index in chart.items():
-#         house = ((sign_index - asc_sign_index) % 12) + 1
-#         rotated[house]['planets'].append(body)
-
-#     for i in range(1, 13):
-#         zodiac_index = (asc_sign_index + i - 1) % 12
-#         rotated[i]['zodiac'] = ZODIAC_SIGNS[zodiac_index] + f" ({zodiac_index + 1})"
-
-#     return rotated
-
-
-
-
-
-def get_d3_chart(planets_raw, asc_deg):
-    def transform(abs_deg):
+    # Step 1: Drekkana transformation (used for both ascendant and planets now)
+    def drekkana_transform(abs_deg):
         sign, deg = get_sign_and_degree(abs_deg)
         drekkana = int(deg // 10)
-
         if drekkana == 0:
-            new_sign = sign
+            return sign  # 1st drekkana — same sign
         elif drekkana == 1:
-            new_sign = (sign + 5) % 12
-        else:  # drekkana == 2
-            new_sign = (sign + 9) % 12
+            return (sign + 4) % 12  # 5th from current
+        else:
+            return (sign + 8) % 12  # 9th from current
 
-        return new_sign  # returns 0–11
+    # ✅ CORRECTED: Apply D3 logic to Ascendant instead of Navamsa
+    asc_sign_index = drekkana_transform(d1_asc_deg)
 
-    transformed_planets = {}
-    for planet, abs_deg in planets_raw.items():
-        transformed_planets[planet] = transform(abs_deg)
+    # Step 2: Build chart using D3 rules
+    chart = {}
+    for planet, abs_deg in d1_planets_raw.items():
+        if planet != 'Ascendant':
+            transformed_sign = drekkana_transform(abs_deg)
+            house = ((transformed_sign - asc_sign_index) % 12) + 1
+            chart[planet] = house
 
-    asc_sign_index = transform(asc_deg)  # 0–11
-    mapping = {}
+    chart['Ascendant'] = 1  # Always place Ascendant in 1st house
 
-    # Now convert transformed sign indices into house numbers based on ascendant
-    for planet, sign_index in transformed_planets.items():
-        house = ((sign_index - asc_sign_index) % 12) +1
-        mapping[planet] = house
+    # Step 3: Final formatting and zodiac labels
+    rotated = {i: {'planets': [], 'zodiac': ''} for i in range(1, 13)}
+    for body, house in chart.items():
+        rotated[house]['planets'].append(body)
 
-    mapping["Ascendant"] = 1  # always put asc in 1st house
-    return rotate_chart(mapping, asc_sign_index)
+    for i in range(1, 13):
+        zodiac_index = (asc_sign_index + i - 1) % 12
+        rotated[i]['zodiac'] = ZODIAC_SIGNS[zodiac_index] + f" ({zodiac_index + 1})"
+
+    return rotated
+
 
 
 
