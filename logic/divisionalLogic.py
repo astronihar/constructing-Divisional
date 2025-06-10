@@ -134,12 +134,73 @@ def get_d6_chart(planets_raw, asc_deg):
         return ((sign + shashtiamsa) if is_odd else (sign + (59 - shashtiamsa))) % 12 + 1
     return generic_chart(planets_raw, asc_deg, transform)
 
-def get_d9_chart(planets_raw, asc_deg):
-    def transform(abs_deg):
+# def get_d9_chart(planets_raw, asc_deg):
+#     def transform(abs_deg):
+#         sign, deg = get_sign_and_degree(abs_deg)
+#         navamsa_index = int(deg * 3)
+#         return ((sign + navamsa_index) if sign % 2 == 0 else (sign + (8 - navamsa_index))) % 12 + 1
+#     return generic_chart(planets_raw, asc_deg, transform)
+
+
+
+
+
+
+
+def get_d9_chart(d1_planets_raw, d1_asc_deg):
+    import math
+
+    ZODIAC_SIGNS = [
+        "Aries", "Taurus", "Gemini", "Cancer", "Leo", "Virgo",
+        "Libra", "Scorpio", "Sagittarius", "Capricorn", "Aquarius", "Pisces"
+    ]
+
+    def get_sign_and_degree(abs_deg):
+        sign = int(abs_deg // 30)
+        degree_in_sign = abs_deg % 30
+        return sign, degree_in_sign
+
+    # Navamsa transformation for any planet (or Asc)
+    def navamsa_transform(abs_deg):
         sign, deg = get_sign_and_degree(abs_deg)
-        navamsa_index = int(deg * 3)
-        return ((sign + navamsa_index) if sign % 2 == 0 else (sign + (8 - navamsa_index))) % 12 + 1
-    return generic_chart(planets_raw, asc_deg, transform)
+        navamsa_number = math.ceil((deg * 9) / 30)  # Gives 1 to 9
+
+        if sign % 2 == 0:  # Even signs: count backward
+            new_sign = (sign - navamsa_number + 1 + 12) % 12
+        else:  # Odd signs: count forward
+            new_sign = (sign + navamsa_number - 1) % 12
+
+        return new_sign  # index 0–11
+
+    # Get transformed ascendant sign
+    asc_sign_index = navamsa_transform(d1_asc_deg)
+
+    # Build chart
+    chart = {}
+    for planet, abs_deg in d1_planets_raw.items():
+        if planet != 'Ascendant':
+            transformed_sign = navamsa_transform(abs_deg)
+            house = ((transformed_sign - asc_sign_index) % 12) + 1
+            chart[planet] = house
+
+    chart['Ascendant'] = 1  # Always place ASC in 1st house
+
+    # Final formatting with zodiac
+    rotated = {i: {'planets': [], 'zodiac': ''} for i in range(1, 13)}
+    for body, house in chart.items():
+        rotated[house]['planets'].append(body)
+
+    for i in range(1, 13):
+        zodiac_index = (asc_sign_index + i - 1) % 12
+        rotated[i]['zodiac'] = ZODIAC_SIGNS[zodiac_index] + f" ({zodiac_index + 1})"
+
+    return rotated
+
+
+
+
+
+
 
 def get_d30_chart(planets_raw, asc_deg):
     def trimsamsa_calc(abs_deg):
